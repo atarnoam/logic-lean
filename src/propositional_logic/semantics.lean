@@ -4,7 +4,7 @@ open formula
 
 namespace semantics
 
-def valuation := index → Prop
+def valuation := var → Prop
 
 def eval (v : valuation) : Formula → Prop :=
 begin  
@@ -18,9 +18,7 @@ end
 namespace valuation
 
 variable (v : valuation)
-variables (n : index) (φ ψ : Formula)
-
-#reduce eval (λ n, true) (Var (0 : ℕ) →ᶠ Var (1 : ℕ))
+variables (n : var) (φ ψ : Formula)
 
 instance : has_coe_to_fun valuation :=
 { F := λ v, Formula → Prop,
@@ -47,12 +45,12 @@ infix ` ⊢ `:50 := consequence
 
 def is_true (φ : Formula) : Prop := ∅ ⊢ φ
 
-prefix `⊢ₜ `:40 := is_true
+prefix ` ⊢ₜ `:40 := is_true
 
 section basics
 
 variables {S T : Theory}
-variables {v : valuation} {φ ψ : Formula}
+variables {v : valuation} {φ ψ ξ : Formula}
 
 lemma subset_models (h : S ⊆ T) (hT : T ⊧ v) : S ⊧ v := λ _ hφ, hT (h hφ)
 
@@ -79,9 +77,9 @@ lemma is_true_def : ⊢ₜ φ ↔ ∅ ⊢ φ := iff.rfl
 lemma is_true_iff : ⊢ₜ φ ↔ ∀ v : valuation, eval v φ :=
 ⟨λ h _, h empty_models, λ h v _, h v⟩
 
-lemma consequence_to_of_consequence_union_singleton : T ∪ {φ} ⊢ ψ → (T ⊢ φ →ᶠ ψ) :=
+lemma consequence_to_of_consequence_union_singleton (h : T ∪ {φ} ⊢ ψ) : (T ⊢ φ →ᶠ ψ) :=
 begin
-  intros h v hv,
+  intros v hv,
   rw valuation.eval_to,
   intro vφ,
   apply h,
@@ -95,9 +93,9 @@ begin
   }
 end
 
-lemma consequence_union_singleton_of_consequence_to : (T ⊢ φ →ᶠ ψ) → T ∪ {φ} ⊢ ψ :=
+lemma consequence_union_singleton_of_consequence_to (h : T ⊢ φ →ᶠ ψ) : T ∪ {φ} ⊢ ψ :=
 begin
-  intros h v hv,
+  intros v hv,
   have hvto := h (subset_models (set.subset_union_left _ _) hv),
   rw valuation.eval_to at hvto,
   apply hvto,
@@ -106,15 +104,53 @@ begin
   exact set.mem_singleton φ,
 end
 
-lemma deduction_theorem : (T ⊢ φ →ᶠ ψ) ↔ T ∪ {φ} ⊢ ψ :=
+theorem deduction : (T ⊢ φ →ᶠ ψ) ↔ T ∪ {φ} ⊢ ψ :=
 ⟨consequence_union_singleton_of_consequence_to, consequence_to_of_consequence_union_singleton⟩
 
 lemma is_true_to_iff : ⊢ₜ φ →ᶠ ψ ↔ {φ} ⊢ ψ :=
 begin
-  rw [is_true_def, deduction_theorem, set.empty_union],
+  rw [is_true_def, deduction, set.empty_union],
 end
 
-example : ⊢ₜ φ →ᶠ φ := is_true_to_iff.2 consequence_self
+lemma refl_true : ⊢ₜ φ →ᶠ φ := is_true_to_iff.2 consequence_self
+
+lemma P1_true : ⊢ₜ φ →ᶠ (ψ →ᶠ φ) := 
+begin
+  rw is_true_to_iff,
+  rw deduction,
+  apply consequence_mem,
+  simp,
+end
+
+lemma P2_true : ⊢ₜ (φ →ᶠ (ψ →ᶠ ξ)) →ᶠ ((φ →ᶠ ψ) →ᶠ (φ →ᶠ ξ)) :=
+begin
+  rw is_true_to_iff,
+  repeat {rw deduction},
+  intros v h,
+  have vφ   : eval v φ := h (by simp),
+  have vφψ  : eval v (φ →ᶠ ψ) := h (by simp),
+  have vφψξ : eval v (φ →ᶠ (ψ →ᶠ ξ)) := h (by simp),
+  simp at *,
+  cc
+end
+
+lemma P3_true : ⊢ₜ (¬ᶠφ →ᶠ ¬ᶠψ) →ᶠ (ψ →ᶠ φ) :=
+begin
+  rw is_true_to_iff,
+  intros v h,
+  have vφψ : eval v (¬ᶠ φ →ᶠ ¬ᶠ ψ) := h (by simp),
+  simp at *,
+  cc
+end
+
+lemma consequence_modus_ponens (hφψ : T ⊢ φ →ᶠ ψ) (hφ : T ⊢ φ) : T ⊢ ψ :=
+begin
+  intros v h,
+  have eφ := hφ h,
+  have eφψ := hφψ h,
+  rw valuation.eval_to at eφψ,
+  cc,
+end
 
 end basics
 
