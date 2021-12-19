@@ -6,9 +6,10 @@ open classical
 
 noncomputable theory
 
-@[derive [decidable_eq]]
+@[derive [decidable_eq, has_zero]]
 def var := ℕ
 
+@[derive [decidable_eq]]
 inductive Formula : Type
 | Var : var → Formula
 | To  : Formula → Formula → Formula

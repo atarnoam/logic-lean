@@ -77,6 +77,9 @@ lemma is_true_def : ⊢ₜ φ ↔ ∅ ⊢ φ := iff.rfl
 lemma is_true_iff : ⊢ₜ φ ↔ ∀ v : valuation, eval v φ :=
 ⟨λ h _, h empty_models, λ h v _, h v⟩
 
+lemma consequence_of_is_true : ⊢ₜ φ → T ⊢ φ := 
+consequence_trans (set.empty_subset _)
+
 lemma consequence_to_of_consequence_union_singleton (h : T ∪ {φ} ⊢ ψ) : (T ⊢ φ →ᶠ ψ) :=
 begin
   intros v hv,
@@ -87,8 +90,7 @@ begin
   rw set.mem_union at hα,
   cases hα,
   { exact hv hα },
-  {
-    rw set.mem_singleton_iff at hα,
+  { rw set.mem_singleton_iff at hα,
     rwa hα,
   }
 end
@@ -114,7 +116,7 @@ end
 
 lemma refl_true : ⊢ₜ φ →ᶠ φ := is_true_to_iff.2 consequence_self
 
-lemma P1_true : ⊢ₜ φ →ᶠ (ψ →ᶠ φ) := 
+lemma is_true_P1 : ⊢ₜ φ →ᶠ (ψ →ᶠ φ) := 
 begin
   rw is_true_to_iff,
   rw deduction,
@@ -122,7 +124,7 @@ begin
   simp,
 end
 
-lemma P2_true : ⊢ₜ (φ →ᶠ (ψ →ᶠ ξ)) →ᶠ ((φ →ᶠ ψ) →ᶠ (φ →ᶠ ξ)) :=
+lemma is_true_P2 : ⊢ₜ (φ →ᶠ (ψ →ᶠ ξ)) →ᶠ ((φ →ᶠ ψ) →ᶠ (φ →ᶠ ξ)) :=
 begin
   rw is_true_to_iff,
   repeat {rw deduction},
@@ -134,7 +136,7 @@ begin
   cc
 end
 
-lemma P3_true : ⊢ₜ (¬ᶠφ →ᶠ ¬ᶠψ) →ᶠ (ψ →ᶠ φ) :=
+lemma is_true_P3 : ⊢ₜ (¬ᶠφ →ᶠ ¬ᶠψ) →ᶠ (ψ →ᶠ φ) :=
 begin
   rw is_true_to_iff,
   intros v h,
@@ -142,6 +144,15 @@ begin
   simp at *,
   cc
 end
+
+lemma consequence_P1 : T ⊢ φ →ᶠ (ψ →ᶠ φ) :=
+consequence_of_is_true is_true_P1
+
+lemma consequence_P2 : T ⊢ (φ →ᶠ (ψ →ᶠ ξ)) →ᶠ ((φ →ᶠ ψ) →ᶠ (φ →ᶠ ξ)) :=
+consequence_of_is_true is_true_P2
+
+lemma consequence_P3 : T ⊢ (¬ᶠφ →ᶠ ¬ᶠψ) →ᶠ (ψ →ᶠ φ) :=
+consequence_of_is_true is_true_P3
 
 lemma consequence_modus_ponens (hφψ : T ⊢ φ →ᶠ ψ) (hφ : T ⊢ φ) : T ⊢ ψ :=
 begin
