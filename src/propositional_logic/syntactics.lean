@@ -1,6 +1,8 @@
 import propositional_logic.lanugage
 import data.set
 import data.finset
+import data.finset.order
+import order.zorn
 open formula
 
 open classical
@@ -64,6 +66,8 @@ lemma is_axiom : φ ∈ classical_axioms → consequence T φ :=
 lemma is_modus_ponens : consequence T φ → consequence T (φ →ᶠ ψ) → consequence T ψ := 
 λ _  _, deduction_consequence.is_modus_ponens ‹_› ‹_›
 
+variables {φ ψ ξ}
+
 lemma is_P1 : T ⊢ φ →ᶠ (ψ →ᶠ φ) := is_axiom _ (p1_subset_classical_axioms mem_P1)
 
 lemma is_P2 : T ⊢ (φ →ᶠ (ψ →ᶠ ξ)) →ᶠ ((φ →ᶠ ψ) →ᶠ (φ →ᶠ ξ)) :=
@@ -71,8 +75,6 @@ is_axiom _ (p2_subset_classical_axioms mem_P2)
 
 lemma is_P3 : T ⊢ (¬ᶠφ →ᶠ ¬ᶠψ) →ᶠ (ψ →ᶠ φ) :=
 is_axiom _ (p3_subset_classical_axioms mem_P3)
-
-variables {φ ψ ξ}
 
 lemma consequence_mem (h : φ ∈ T) : T ⊢ φ := deduction_consequence.is_theory ‹_›
 
@@ -106,15 +108,15 @@ variables {T S : Theory} {φ ψ ξ : Formula}
 
 lemma is_true_self_to_self : ⊢ₜ φ →ᶠ φ  :=
 begin
-  apply is_modus_ponens (φ →ᶠ (φ →ᶠ φ)) _ (is_P1 _ _),
-  exact is_modus_ponens (φ →ᶠ ((φ →ᶠ φ) →ᶠ φ)) _ (is_P1 _ _) (is_P2 _ _ _),
+  apply is_modus_ponens (φ →ᶠ (φ →ᶠ φ)) _ is_P1,
+  exact is_modus_ponens (φ →ᶠ ((φ →ᶠ φ) →ᶠ φ)) _ is_P1 is_P2,
 end
 
 lemma consequence_self_to_self : T ⊢ φ →ᶠ φ := 
 consequence_of_is_true is_true_self_to_self
 
 lemma consequence_to_of_consequence (h : T ⊢ φ) : T ⊢ ψ →ᶠ φ :=
-is_modus_ponens φ _ ‹_› (is_P1 _ _)
+is_modus_ponens φ _ ‹_› is_P1
 
 lemma consequence_union_singleton_of_consequence_to (h : T ⊢ φ →ᶠ ψ) : T ∪ {φ} ⊢ ψ :=
 begin
@@ -136,17 +138,20 @@ begin
   { exact consequence_to_of_consequence (is_axiom _ ‹_›) },
   { apply is_modus_ponens _ _ hαT,
     apply is_modus_ponens _ _ hαβT,
-    exact is_P2 _ _ _ }
+    exact is_P2 }
 end
 
 theorem deduction : (T ⊢ φ →ᶠ ψ) ↔ T ∪ {φ} ⊢ ψ :=
 ⟨consequence_union_singleton_of_consequence_to, consequence_to_of_consequence_union_singleton⟩
 
+lemma is_true_deduction : ⊢ₜ φ →ᶠ ψ ↔ {φ} ⊢ ψ :=
+by rw [is_true_def, deduction, set.empty_union]
+
 end deduction_theorem
 
 section compactness
 
-variables {T : Theory} {φ : Formula}
+variables {T : Theory} {φ ψ : Formula}
 
 theorem exists_finset_consequence_of_consequence (h : T ⊢ φ) : 
 ∃ (S : finset Formula), ((S : set Formula) ⊆ T) ∧ (S : set Formula) ⊢ φ :=
@@ -167,6 +172,85 @@ end
 
 end compactness
 
+section negation
+
+variables {T S : Theory} {φ ψ : Formula}
+
+def false : Formula := ¬ᶠ (Formula.Var 0 →ᶠ Formula.Var 0)
+
+lemma consequence_of_consequence_consequence_not (h : T ⊢ φ) (hn : T ⊢ ¬ᶠ φ) : T ⊢ ψ :=
+begin
+  apply is_modus_ponens φ _ ‹_›,
+  exact is_modus_ponens (¬ᶠ ψ →ᶠ ¬ᶠ φ) _ (consequence_to_of_consequence ‹_›) is_P3,
+end
+
+lemma consequence_of_consequence_false (h : T ⊢ false) : T ⊢ φ :=
+begin
+  apply is_modus_ponens (Formula.Var 0 →ᶠ Formula.Var 0) _ consequence_self_to_self,
+  refine is_modus_ponens (¬ᶠ φ →ᶠ ¬ᶠ (Formula.Var 0 →ᶠ Formula.Var 0)) _ _ is_P3,
+  exact consequence_to_of_consequence h
+end
+
+lemma is_true_not_to_self_to_self : ⊢ₜ (¬ᶠ φ →ᶠ φ) →ᶠ φ :=
+begin
+  rw is_true_deduction,
+  apply is_modus_ponens (¬ᶠ φ →ᶠ φ) _ consequence_self,
+  refine is_modus_ponens (¬ᶠ φ →ᶠ ¬ᶠ (¬ᶠ φ →ᶠ φ)) _ _ is_P3,
+  rw deduction,
+  have h : ¬ᶠ φ ∈ {¬ᶠ φ →ᶠ φ} ∪ {¬ᶠ φ} := (set.mem_union_right _ (set.mem_singleton _)),
+  refine consequence_of_consequence_consequence_not _ (consequence_mem ‹_›),
+  rw ← deduction,
+  exact consequence_self
+end
+
+lemma consequence_not_to_self_to_self : T ⊢ (¬ᶠ φ →ᶠ φ) →ᶠ φ :=
+consequence_of_is_true is_true_not_to_self_to_self
+
+lemma is_true_not_not_to : ⊢ₜ ¬ᶠ ¬ᶠ φ →ᶠ φ :=
+begin
+  rw is_true_deduction,
+  refine is_modus_ponens (¬ᶠ φ →ᶠ φ) _ _ consequence_not_to_self_to_self,
+  rw deduction,
+  exact consequence_of_consequence_consequence_not 
+  (consequence_mem (set.mem_union_right _ (set.mem_singleton _))) 
+  (consequence_mem (set.mem_union_left _ (set.mem_singleton _)))
+end
+
+lemma consequence_not_not_to : T ⊢ ¬ᶠ ¬ᶠ φ →ᶠ φ  :=
+consequence_of_is_true is_true_not_not_to
+
+lemma is_true_to_not_not : ⊢ₜ φ →ᶠ ¬ᶠ ¬ᶠ φ :=
+is_modus_ponens _ _ consequence_not_not_to is_P3
+
+lemma consequence_to_not_not : T ⊢ φ →ᶠ ¬ᶠ ¬ᶠ φ  :=
+consequence_of_is_true is_true_to_not_not
+
+lemma is_true_modus_tollens : ⊢ₜ (φ →ᶠ ψ) →ᶠ (¬ᶠ ψ →ᶠ ¬ᶠ φ) :=
+begin
+  rw is_true_deduction,
+  apply is_modus_ponens _ _ _ is_P3,
+  rw deduction,
+  refine is_modus_ponens _ _ _ consequence_to_not_not,
+  refine is_modus_ponens _ _ _ (consequence_mem (set.mem_union_left _ (set.mem_singleton _))),
+  rw ← deduction,
+  exact consequence_not_not_to
+end
+
+lemma consequence_modus_tollens : T ⊢ (φ →ᶠ ψ) →ᶠ (¬ᶠ ψ →ᶠ ¬ᶠ φ) :=
+consequence_of_is_true is_true_modus_tollens
+
+lemma consequence_of_to_not_to (h : T ⊢ φ →ᶠ ψ) (hn : T ⊢ (¬ᶠ φ) →ᶠ ψ) : T ⊢ ψ :=
+begin
+  refine is_modus_ponens (¬ᶠ ψ →ᶠ ψ) _ _ (consequence_not_to_self_to_self),
+  rw deduction,
+  have H := is_modus_ponens _ _ h consequence_modus_tollens,
+  refine is_modus_ponens _ _ _ (consequence_trans (set.subset_union_left _ _) hn),
+  refine is_modus_ponens _ _ _ (consequence_of_is_true H),
+  exact consequence_self
+end
+
+end negation
+
 def consistent (T : Theory) : Prop := 
 ∀ φ : Formula, ¬ (T ⊢ φ) ∨ ¬ (T ⊢ ¬ᶠ φ)
 
@@ -178,23 +262,14 @@ def complete (T : Theory) : Prop :=
 
 section consistency
 
-def false : Formula := ¬ᶠ (Formula.Var 0 →ᶠ Formula.Var 0)
+variables {T S : Theory} {φ ψ : Formula}
 
-variables {T : Theory} {φ ψ : Formula}
-
-variable {T}
-
-lemma consequence_of_consequence_consequence_not (h : T ⊢ φ) (hn : T ⊢ ¬ᶠ φ) : T ⊢ ψ :=
+lemma consistent_trans (h : S ⊆ T) (hT : consistent T) : consistent S :=
 begin
-  apply is_modus_ponens φ _ ‹_›,
-  exact is_modus_ponens (¬ᶠ ψ →ᶠ ¬ᶠ φ) _ (consequence_to_of_consequence ‹_›) (is_P3 _ _),
-end
-
-lemma consequence_of_consequence_false (h : T ⊢ false) : T ⊢ φ :=
-begin
-  apply is_modus_ponens (Formula.Var 0 →ᶠ Formula.Var 0) _ consequence_self_to_self,
-  refine is_modus_ponens (¬ᶠ φ →ᶠ ¬ᶠ (Formula.Var 0 →ᶠ Formula.Var 0)) _ _ (is_P3 _ _),
-  exact consequence_to_of_consequence h
+  intro φ,
+  cases hT φ with hφ hnφ,
+  exact or.inl (λ h', hφ $ consequence_trans ‹_› h'),
+  exact or.inr (λ h', hnφ $ consequence_trans ‹_› h'),
 end
 
 lemma consistent_of_not_consequence : ¬ (T ⊢ φ) → consistent T :=
@@ -240,7 +315,45 @@ begin
   rwa inconsistent_iff_consequence_false,
 end
 
+lemma consistent_of_all_finset_consistent 
+(h : ∀ (S : finset Formula), ((S : set Formula) ⊆ T) → (consistent (S : set Formula))) :
+consistent T :=
+by { revert h, contrapose!, exact finset_inconsistent_of_inconsistent }
+
+lemma consistent_iff_all_finset_consistent :
+consistent T ↔ ∀ (S : finset Formula), ((S : set Formula) ⊆ T) → (consistent (S : set Formula)) :=
+⟨λ _ _ _, consistent_trans ‹_› ‹_›, consistent_of_all_finset_consistent⟩
+
+lemma consistent_union_of_consistent_not_consequence (hφ : ¬ T ⊢ φ) : consistent (T ∪ {¬ᶠ φ}) :=
+begin
+    rw consistent_iff_exists_not_consequence,
+    use φ,
+    revert hφ,
+    contrapose!,
+    rw ← deduction,
+    intro h,
+    rw deduction at h,
+end
+
 end consistency
 
+section consistent_extension
+
+variables {T : Theory}
+
+open zorn
+
+private lemma chain_union_consistent_consistent (c : set Theory) (hT : T ∈ c) (hcons : c ⊆ consistent) (hchain : chain (⊆) c) : 
+consistent (⋃ (s ∈ c), s) :=
+begin
+  rw consistent_iff_all_finset_consistent,
+  intros S hS,
+  rcases finset.exists_mem_subset_of_subset_bUnion_of_directed_on hT (chain.directed_on hchain) hS 
+  with ⟨R, hRc, hSR⟩,
+  apply consistent_trans hSR,
+  exact set.mem_of_subset_of_mem hcons hRc,
+end
+
+end consistent_extension
 
 end syntactics

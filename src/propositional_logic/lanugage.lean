@@ -53,5 +53,5 @@ end⟩-/
 
 end formula
 
-@[derive [has_mem Formula, has_singleton Formula, has_union, has_emptyc, has_subset]]
+@[derive [has_mem Formula, has_singleton Formula, has_union, has_emptyc, has_subset, complete_lattice]]
 def Theory := set Formula
