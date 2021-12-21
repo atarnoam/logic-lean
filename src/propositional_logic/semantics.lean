@@ -2,8 +2,6 @@ import propositional_logic.lanugage
 
 open formula
 
-namespace semantics
-
 def valuation := var → Prop
 
 def eval (v : valuation) : Formula → Prop :=
@@ -15,15 +13,14 @@ begin
   exact ¬vα,
 end
 
-namespace valuation
+namespace semantics
+
+section valuation
 
 variable (v : valuation)
 variables (n : var) (φ ψ : Formula)
 
-instance : has_coe_to_fun valuation :=
-{ F := λ v, Formula → Prop,
-  coe := λ v, eval v 
-}
+instance : has_coe_to_fun valuation (λ _, Formula → Prop) := ⟨eval⟩
 
 variable {v}
 
@@ -33,13 +30,13 @@ variable {v}
 
 end valuation
 
-def models (T : Theory) (v : valuation) : Prop :=
+def models (v : valuation) (T : Theory) : Prop :=
 ∀ ⦃φ : Formula⦄, φ ∈ T → eval v φ
 
 infix ` ⊧ `:50 := models
 
 def consequence (T : Theory) (φ : Formula) : Prop :=
-∀ ⦃v : valuation⦄, T ⊧ v → eval v φ
+∀ ⦃v : valuation⦄, v ⊧ T → eval v φ
 
 infix ` ⊢ `:50 := consequence
 
@@ -52,7 +49,7 @@ section basics
 variables {S T : Theory}
 variables {v : valuation} {φ ψ ξ : Formula}
 
-lemma subset_models (h : S ⊆ T) (hT : T ⊧ v) : S ⊧ v := λ _ hφ, hT (h hφ)
+lemma subset_models (h : S ⊆ T) (hT : v ⊧ T) : v ⊧ S := λ _ hφ, hT (h hφ)
 
 lemma consequence_trans (h : S ⊆ T) (hS : S ⊢ φ) : T ⊢ φ :=
 λ _ _, hS (subset_models h ‹_›)
@@ -65,7 +62,7 @@ lemma consequence_self : {φ} ⊢ φ := consequence_mem (set.mem_singleton _)
 lemma consequence_cut (h : ∀ ψ ∈ S, T ⊢ ψ) (hs : S ⊢ φ) : T ⊢ φ :=
 λ _ hv, hs (λ _ hψ, h _ hψ hv)
 
-lemma empty_models : ∅ ⊧ v :=
+lemma empty_models : v ⊧ ∅ :=
 begin
   intros _ _,
   exfalso,
@@ -83,7 +80,7 @@ consequence_trans (set.empty_subset _)
 lemma consequence_to_of_consequence_union_singleton (h : T ∪ {φ} ⊢ ψ) : (T ⊢ φ →ᶠ ψ) :=
 begin
   intros v hv,
-  rw valuation.eval_to,
+  rw eval_to,
   intro vφ,
   apply h,
   intros α hα,
@@ -99,7 +96,7 @@ lemma consequence_union_singleton_of_consequence_to (h : T ⊢ φ →ᶠ ψ) : T
 begin
   intros v hv,
   have hvto := h (subset_models (set.subset_union_left _ _) hv),
-  rw valuation.eval_to at hvto,
+  rw eval_to at hvto,
   apply hvto,
   apply hv,
   right,
@@ -159,10 +156,26 @@ begin
   intros v h,
   have eφ := hφ h,
   have eφψ := hφψ h,
-  rw valuation.eval_to at eφψ,
+  rw eval_to at eφψ,
   cc,
 end
 
 end basics
+
+section completeness
+
+variables {T : Theory} {v : valuation} {φ : Formula}
+
+lemma not_consequence_of_models_union_not (h : v ⊧ T ∪ {¬ᶠ φ}) : ¬ (T ⊢ φ) :=
+begin
+  by_contra H,
+  have hvT : v ⊧ T := subset_models (set.subset_union_left _ _) h,
+  have hvnφ : eval v (¬ᶠ φ) := h (by simp),
+  rw eval_not at hvnφ,
+  have hvφ := H hvT,
+  exact hvnφ hvφ,
+end
+
+end completeness
 
 end semantics
