@@ -2,8 +2,11 @@ import order
 import data.finset
 import data.pfun
 import data.set.finite
+import data.list.alist
+
 
 open classical
+open alist
 
 noncomputable theory
 
@@ -27,10 +30,7 @@ instance : has_mem var Formula :=
   exact φmem,
 end}
 
-structure SubstitutionData := 
-(fn : pfun var Formula)
-(finite_dom : set.finite fn.dom)
-
+def SubstitutionData := alist (λ v : var, Formula)
 
 class has_substitution (α : Type*) :=
 (substitute : α → SubstitutionData → α)
@@ -45,14 +45,15 @@ prefix `¬ᶠ `:70 := Formula.Not
 instance : has_substitution Formula :=
 ⟨λ φ s,
 begin
-  induction φ with n,
+  induction φ with v,
   {
-    refine pfun.eval_opt s.fn _,
+    cases s.lookup v with ψ,
+    exact Var v,
+    exact ψ,
   },
   exact Formula.To ‹_› ‹_›,
   exact Formula.Not ‹_›,
-end⟩
---⟨λ φ s, Formula.rec s (λ _ _, Formula.To) (λ _, Formula.Not) φ⟩
+end⟩ 
 
 end formula
 
