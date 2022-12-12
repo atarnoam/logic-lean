@@ -1,6 +1,7 @@
 import order
 import data.finset
 import data.pfun
+import data.set.finite
 
 open classical
 
@@ -28,7 +29,7 @@ end}
 
 structure SubstitutionData := 
 (fn : pfun var Formula)
-(finite_dom : ∃ A : finset var, (A : set var) = fn.dom)
+(finite_dom : set.finite fn.dom)
 
 
 class has_substitution (α : Type*) :=
@@ -41,14 +42,16 @@ def Var := Formula.Var
 infix ` →ᶠ `:60 := Formula.To
 prefix `¬ᶠ `:70 := Formula.Not
 
-/-instance : has_substitution Formula :=
+instance : has_substitution Formula :=
 ⟨λ φ s,
 begin
   induction φ with n,
-  refine @dite _ (n ∈ s.dom) (dec _) (λ _, pfun.fn s n ‹_›) (λ _, Var n),
+  {
+    refine pfun.eval_opt s.fn _,
+  },
   exact Formula.To ‹_› ‹_›,
   exact Formula.Not ‹_›,
-end⟩-/
+end⟩
 --⟨λ φ s, Formula.rec s (λ _ _, Formula.To) (λ _, Formula.Not) φ⟩
 
 end formula
