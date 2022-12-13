@@ -4,13 +4,12 @@ import data.pfun
 import data.set.finite
 import data.list.alist
 
-
 open classical
 open alist
 
 noncomputable theory
 
-@[derive [decidable_eq, has_zero]]
+@[derive [decidable_eq, has_zero, has_one]]
 def var := ℕ
 
 @[derive [decidable_eq]]
@@ -32,9 +31,6 @@ end}
 
 def SubstitutionData := alist (λ v : var, Formula)
 
-class has_substitution (α : Type*) :=
-(substitute : α → SubstitutionData → α)
-
 namespace formula
 
 def Var := Formula.Var
@@ -42,8 +38,8 @@ def Var := Formula.Var
 infix ` →ᶠ `:60 := Formula.To
 prefix `¬ᶠ `:70 := Formula.Not
 
-instance : has_substitution Formula :=
-⟨λ φ s,
+def substitute : Formula → SubstitutionData → Formula :=
+λ φ s,
 begin
   induction φ with v,
   {
@@ -53,7 +49,7 @@ begin
   },
   exact Formula.To ‹_› ‹_›,
   exact Formula.Not ‹_›,
-end⟩ 
+end
 
 end formula
 
